@@ -67,53 +67,136 @@ class LaneFinder:
                                    cv2.WARP_FILL_OUTLIERS +
                                    cv2.INTER_CUBIC+cv2.WARP_INVERSE_MAP)
         
-    def find_lane(self, img, reset=False):
+    def find_lane(self, img, *kwarg, reset=False):
         img = self.undistort(img)
         img = self.warp(img)
         
+        img_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+        img_hsv = cv2.medianBlur(img_hsv, 5)
+        img_v = img_hsv[...,2]
+        
         img_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
         img_hls = cv2.medianBlur(img_hls, 5)
+        img_s = img_hls[...,2]
+        
+        # lab is good for yellow line detection
         img_lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
         img_lab = cv2.medianBlur(img_lab, 5)
+        img_b = img_lab[...,2]
         
-        big_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
-        small_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        kwarg[0].append(img_v)
+        kwarg[1].append(img_s)
+        kwarg[2].append(img_b)
+
+#        n_h = 10
+#        h_size = img.shape[0]//n_h
+#        for h in range(0, img.shape[0], h_size):
+#            h_max = min(img.shape[0], h + h_size)
+#            img_v_mean = img_v[h:h_max,...].mean()
+#            img_v_std = img_v[h:h_max,...].std()
+#            img_s_mean = img_s[h:h_max,...].mean()
+#            img_s_std = img_s[h:h_max,...].std()
+#            img_b_mean = img_b[h:h_max,...].mean()
+#            img_b_std = img_b[h:h_max,...].std()
+#            kwarg[0].append(img_v_mean)
+#            kwarg[1].append(img_v_std)
+#            kwarg[2].append(img_s_mean)
+#            kwarg[3].append(img_s_std)
+#            kwarg[4].append(img_b_mean)
+#            kwarg[5].append(img_b_std)
+#            
+#            img_v[h:h_max,...] = cv2.inRange(img_v[h:h_max,...], img_v_mean + 2 * img_v_std, img_v_mean + 2.5 * img_v_std)
+#            img_s[h:h_max,...] = cv2.inRange(img_s[h:h_max,...], img_s_mean + 7 * img_s_std, img_s_mean + 8.5 * img_s_std)
+#            img_b[h:h_max,...] = cv2.inRange(img_b[h:h_max,...], img_b_mean + 2 * img_b_std, img_b_mean + 14 * img_b_std)
         
-        greenery = (img_lab[:, :, 2].astype(np.uint8) > 130) &\
-            cv2.inRange(img_hls, (0, 0, 50), (35, 190, 255))
-            
-        road_mask = np.logical_not(greenery).astype(np.uint8) & \
-            (img_hls[...,1]<250)
-        road_mask = cv2.morphologyEx(road_mask, cv2.MORPH_OPEN, small_kernel)
-        road_mask = cv2.dilate(road_mask, big_kernel)
+        img_v = cv2.inRange(img_v, 170, 230)
+        img_s = cv2.inRange(img_s, 200, 245)
+        img_b = cv2.inRange(img_b, 170, 200)
         
-        _, contours, _ = cv2.findContours(road_mask, cv2.RETR_LIST, 
-                                                     cv2.CHAIN_APPROX_NONE)
+        img_sv = cv2.bitwise_or(img_s, img_v)
+        img_out = cv2.bitwise_or(img_b, img_sv)
+#        img_out = img_sv
         
-        biggest_area = 0
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            if area>biggest_area:
-                biggest_area = area
-                biggest_contour = contour
-        road_mask = np.zeros_like(road_mask)
-        cv2.fillPoly(road_mask, [biggest_contour],  1)
+        kernel= cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 19))
+        img_out = cv2.morphologyEx(img_out, cv2.MORPH_DILATE, kernel)
         
-        self.roi_mask[:, :, 0] = (self.left_line.line_mask | 
-                self.right_line.line_mask) & road_mask
-        self.roi_mask[:, :, 1] = self.roi_mask[:, :, 0]
-        self.roi_mask[:, :, 2] = self.roi_mask[:, :, 0]
-            
-        return self.roi_mask
+        
+        img_out = np.dstack((np.zeros_like(img_out), img_out, np.zeros_like(img_out)))
+        img_out = cv2.addWeighted(img, 1, img_out, 1, 0)
+        
+        return img_out
     
-img = cv2.imread('test_images/straight_lines2.jpg')
-#img = cv2.imread('test_images/test1.jpg')
+img = cv2.imread('test_images/straight_lines1.jpg')
+#img = cv2.imread('test_images/test5.jpg')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 lane_finder = LaneFinder((1280, 720), (600, 500), camera_matrix,
                          distortion_coefficients, perspective_matrix,
                          perspective_matrix_inverse, meter_per_pixel_x,
                          meter_per_pixel_y)
 
-img_out = lane_finder.find_lane(img)
-plt.figure(figsize=(16, 9))
-plt.imshow(img_out)
+#img_s, img_b, img_v = lane_finder.find_lane(img)
+
+#plt.plot(img_s.mean(axis=0))
+#plt.show()
+#plt.plot(img_b.mean(axis=0))
+#plt.show()
+#plt.plot(img_v.mean(axis=0))
+#plt.show()
+
+#plt.plot(img_s[150])
+#plt.show()
+#plt.plot(img_b[150])
+#plt.show()
+#plt.plot(img_v[150])
+#plt.show()
+
+#plt.figure(figsize=(16, 9))
+#plt.imshow(img_sv, 'gray')
+#plt.show()
+#plt.figure(figsize=(16, 9))
+#plt.imshow(img_b, 'gray')
+#plt.show()
+
+
+video_files = ['challenge_video.mp4']
+output_path = "output_videos"
+for file in video_files:
+    output = os.path.join(output_path,"lane_"+file)
+    clip2 = VideoFileClip(file)#.subclip(0,6)
+    img_v = []
+#    img_v_std = []
+    img_s = []
+#    img_s_std = []
+    img_b = []
+#    img_b_std = []
+    challenge_clip = clip2.fl_image(lambda x: lane_finder.find_lane(x, img_v, img_s, img_b))
+#    challenge_clip = clip2.fl_image(lambda x: lane_finder.find_lane(x))
+    challenge_clip.write_videofile(output, audio=False)
+    break
+
+#img_v_mean = np.array(img_v_mean)
+#img_v_std = np.array(img_v_std)
+#img_s_mean = np.array(img_s_mean)
+#img_s_std = np.array(img_s_std)
+#img_b_mean = np.array(img_b_mean)
+#img_b_std = np.array(img_b_std)
+
+#%%
+
+#plt.figure(figsize=(16, 9))
+#plt.plot(img_v_mean)
+#plt.plot(img_v_mean + 2 * img_v_std)
+#plt.plot(img_v_mean + 3 * img_v_std)
+#plt.show()
+
+#plt.figure(figsize=(16, 9))
+#plt.plot(img_s_mean)
+#plt.plot(img_s_mean + 9 * img_s_std)
+#plt.plot(img_s_mean + 7 * img_s_std)
+#plt.show()
+
+#plt.figure(figsize=(16, 9))
+#plt.plot(img_b_mean)
+#plt.plot(img_b_mean + 14 * img_b_std)
+#plt.plot(img_b_mean + 2 * img_b_std)
+#plt.show()
