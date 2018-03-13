@@ -76,7 +76,7 @@ def calculate_line(vp, point, ycoord):
 
 top = np.float32(vp[1] + 60)
 bottom = np.float32(img.shape[0] - 20)
-width = np.float32(530)
+width = np.float32(500)
 p1 = (vp[0] - width/2, top)
 p2 = (vp[0] + width/2, top)
 p3 = calculate_line(vp, p2, bottom)

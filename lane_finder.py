@@ -84,9 +84,9 @@ class LaneFinder:
         img_lab = cv2.medianBlur(img_lab, 5)
         img_b = img_lab[...,2]
         
-        kwarg[0].append(img_v)
-        kwarg[1].append(img_s)
-        kwarg[2].append(img_b)
+#        kwarg[0].append(img_v)
+#        kwarg[1].append(img_s)
+#        kwarg[2].append(img_b)
 
 #        n_h = 10
 #        h_size = img.shape[0]//n_h
@@ -109,9 +109,13 @@ class LaneFinder:
 #            img_s[h:h_max,...] = cv2.inRange(img_s[h:h_max,...], img_s_mean + 7 * img_s_std, img_s_mean + 8.5 * img_s_std)
 #            img_b[h:h_max,...] = cv2.inRange(img_b[h:h_max,...], img_b_mean + 2 * img_b_std, img_b_mean + 14 * img_b_std)
         
-        img_v = cv2.inRange(img_v, 170, 230)
+#        img_v = cv2.inRange(img_v, 170, 230)
         img_s = cv2.inRange(img_s, 200, 245)
         img_b = cv2.inRange(img_b, 170, 200)
+        
+        img_b = img_b.astype(np.float32)
+        img_b = img_b/img_b.mean(axis=1).reshape(-1, 1)
+        img_b = cv2.inRange(img_b, 1.1, 1.3)
         
         img_sv = cv2.bitwise_or(img_s, img_v)
         img_out = cv2.bitwise_or(img_b, img_sv)
@@ -124,7 +128,7 @@ class LaneFinder:
         img_out = np.dstack((np.zeros_like(img_out), img_out, np.zeros_like(img_out)))
         img_out = cv2.addWeighted(img, 1, img_out, 1, 0)
         
-        return img_out
+        return img_out, img_b
     
 img = cv2.imread('test_images/straight_lines1.jpg')
 #img = cv2.imread('test_images/test5.jpg')
@@ -134,7 +138,7 @@ lane_finder = LaneFinder((1280, 720), (600, 500), camera_matrix,
                          perspective_matrix_inverse, meter_per_pixel_x,
                          meter_per_pixel_y)
 
-#img_s, img_b, img_v = lane_finder.find_lane(img)
+img_s, img_b = lane_finder.find_lane(img)
 
 #plt.plot(img_s.mean(axis=0))
 #plt.show()
@@ -150,44 +154,36 @@ lane_finder = LaneFinder((1280, 720), (600, 500), camera_matrix,
 #plt.plot(img_v[150])
 #plt.show()
 
-#plt.figure(figsize=(16, 9))
-#plt.imshow(img_sv, 'gray')
-#plt.show()
-#plt.figure(figsize=(16, 9))
-#plt.imshow(img_b, 'gray')
-#plt.show()
+plt.figure(figsize=(16, 9))
+plt.imshow(img_s, 'gray')
+plt.show()
+plt.figure(figsize=(16, 9))
+plt.imshow(img_b, 'gray')
+plt.show()
 
 
-video_files = ['challenge_video.mp4']
-output_path = "output_videos"
-for file in video_files:
-    output = os.path.join(output_path,"lane_"+file)
-    clip2 = VideoFileClip(file)#.subclip(0,6)
-    img_v = []
-#    img_v_std = []
-    img_s = []
-#    img_s_std = []
-    img_b = []
-#    img_b_std = []
-    challenge_clip = clip2.fl_image(lambda x: lane_finder.find_lane(x, img_v, img_s, img_b))
-#    challenge_clip = clip2.fl_image(lambda x: lane_finder.find_lane(x))
-    challenge_clip.write_videofile(output, audio=False)
-    break
+#video_files = ['challenge_video.mp4']
+#output_path = "output_videos"
+#for file in video_files:
+#    output = os.path.join(output_path,"lane_"+file)
+#    clip2 = VideoFileClip(file).subclip(0,6)
+#    img_v = []
+##    img_v_std = []
+#    img_s = []
+##    img_s_std = []
+#    img_b = []
+##    img_b_std = []
+#    challenge_clip = clip2.fl_image(lambda x: lane_finder.find_lane(x, img_v, img_s, img_b))
+##    challenge_clip = clip2.fl_image(lambda x: lane_finder.find_lane(x))
+#    challenge_clip.write_videofile(output, audio=False)
+#    break
 
 
 #%%
-with open('vsb.p', 'wb') as f:
-    pickle.dump({'v': img_v, 'b': img_b, 's': img_s}, f,
-                pickle.HIGHEST_PROTOCOL)
+#with open('project_vsb.p', 'wb') as f:
+#    pickle.dump({'v': img_v, 'b': img_b, 's': img_s}, f,
+#                pickle.HIGHEST_PROTOCOL)
     
-
-#img_v_mean = np.array(img_v_mean)
-#img_v_std = np.array(img_v_std)
-#img_s_mean = np.array(img_s_mean)
-#img_s_std = np.array(img_s_std)
-#img_b_mean = np.array(img_b_mean)
-#img_b_std = np.array(img_b_std)
-
 #%%
 
 #plt.figure(figsize=(16, 9))
@@ -209,15 +205,15 @@ with open('vsb.p', 'wb') as f:
 #plt.show()
     
 #%%
-import pandas as pd
-with open('vsb.p', 'rb') as f:
-    data = pickle.load(f)
-data_length = len(data['v'])
-for n in range(data_length):
-    dfv = pd.DataFrame(data['v'][n])
-    dfv.to_csv('csv/img_v_{}.csv'.format(n), header=None, index_col=None)
-    dfb = pd.DataFrame(data['b'][n])
-    dfb.to_csv('csv/img_b_{}.csv'.format(n), header=None, index_col=None)
-    dfs = pd.DataFrame(data['s'][n])
-    dfs.to_csv('csv/img_s_{}.csv'.format(n), header=None, index_col=None)
-    break
+#import pandas as pd
+#with open('project_vsb.p', 'rb') as f:
+#    data = pickle.load(f)
+#data_length = len(data['v'])
+#for n in range(data_length):
+#    dfv = pd.DataFrame(data['v'][n])
+#    dfv.to_csv('project_csv/img_v_{}.csv'.format(n), header=None, index=None)
+#    dfb = pd.DataFrame(data['b'][n])
+#    dfb.to_csv('project_csv/img_b_{}.csv'.format(n), header=None, index=None)
+#    dfs = pd.DataFrame(data['s'][n])
+#    dfs.to_csv('project_csv/img_s_{}.csv'.format(n), header=None, index=None)
+#    break
