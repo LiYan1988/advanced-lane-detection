@@ -174,6 +174,13 @@ for file in video_files:
     challenge_clip.write_videofile(output, audio=False)
     break
 
+
+#%%
+with open('vsb.p', 'wb') as f:
+    pickle.dump({'v': img_v, 'b': img_b, 's': img_s}, f,
+                pickle.HIGHEST_PROTOCOL)
+    
+
 #img_v_mean = np.array(img_v_mean)
 #img_v_std = np.array(img_v_std)
 #img_s_mean = np.array(img_s_mean)
@@ -200,3 +207,17 @@ for file in video_files:
 #plt.plot(img_b_mean + 14 * img_b_std)
 #plt.plot(img_b_mean + 2 * img_b_std)
 #plt.show()
+    
+#%%
+import pandas as pd
+with open('vsb.p', 'rb') as f:
+    data = pickle.load(f)
+data_length = len(data['v'])
+for n in range(data_length):
+    dfv = pd.DataFrame(data['v'][n])
+    dfv.to_csv('csv/img_v_{}.csv'.format(n), header=None, index_col=None)
+    dfb = pd.DataFrame(data['b'][n])
+    dfb.to_csv('csv/img_b_{}.csv'.format(n), header=None, index_col=None)
+    dfs = pd.DataFrame(data['s'][n])
+    dfs.to_csv('csv/img_s_{}.csv'.format(n), header=None, index_col=None)
+    break
